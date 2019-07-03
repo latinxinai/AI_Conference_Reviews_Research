@@ -17,4 +17,5 @@ This is the opensourced repository for code associated with the [Longitudinal St
 
 
 ## Scripts
-- [Parse review data into CSV for analysis with columns for Q1, Q2, Rebuttals, Paper_id, Title, NeurIPS_edition for use on NeurIPS reviews.]()
+- [Parse NeurIPS review data into CSV for analysis with columns for Q1, Q2, Rebuttals, Paper_id, Title, NeurIPS_edition for use on NeurIPS reviews.](/scripts/neurips_html_toCSV.py)
+- [Crawl OpenReview for ICLR review data](/scripts/iclr_data.py)
