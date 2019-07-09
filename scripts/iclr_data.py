@@ -24,25 +24,22 @@ iclr2016_workshop = "ICLR.cc/2016/workshop/-/submission" # 125
 
 # 2017
 
-iclr2017_conference = "ICLR.cc/2017/conference/-/submission" # 490
-iclr2017_workshop = "ICLR.cc/2017/workshop/-/submission" # 158
+iclr2017_conference = "ICLR.cc/2017/conference/-/paper.*/acceptance" # 490
+iclr2017_workshop = "ICLR.cc/2017/workshop/-/paper.*/acceptance" # 124
 
 # 2018
 
-iclr2018_conference_blindsubm = "ICLR.cc/2018/Conference/-/Blind_Submission" # 911
-iclr2018_conference_withdrawn = "ICLR.cc/2018/Conference/-/Withdrawn_Submission" # 83
-iclr2018_workshop = "ICLR.cc/2018/Workshop/-/Submission" # 343
-iclr2018_workshop_withdrawn = "ICLR.cc/2018/Workshop/-/Withdraw_Submission" # 1
+iclr2018_conference_decision = "ICLR.cc/2018/Conference/-/Acceptance_Decision" # 935
+iclr2018_workshop_decision = "ICLR.cc/2018/Workshop/-/Acceptance_Decision" # 345
 
 # 2019
 
-iclr2019_conference_blindsubm = "ICLR.cc/2019/Conference/-/Blind_Submission" # 1419
-iclr2019_conference_withdrawn = "ICLR.cc/2019/Conference/-/Withdrawn_Submission" # 160
+iclr2019_conference_decision = "ICLR.cc/2019/Conference/-/Paper.*/Meta_Review" # 1419
+iclr2019_workshop_drlmsp = "ICLR.cc/2019/Workshop/drlStructPred/-/Paper.*/Decision" # 8
+iclr2019_workshop_rml = "ICLR.cc/2019/Workshop/RML/-/Paper.*/Decision" # 8
+iclr2019_workshop_lld = "ICLR.cc/2019/Workshop/LLD/-/Paper.*/Decision" # 67
+iclr2019_workshop_dgmhsd = "ICLR.cc/2019/Workshop/DeepGenStruct/-/Paper.*/Decision" # 42
 
-iclr2019_workshop_drlmsp = "ICLR.cc/2019/Workshop/drlStructPred/-/Blind_Submission" # 8
-iclr2019_workshop_rml = "ICLR.cc/2019/Workshop/RML/-/Blind_Submission" # 8
-iclr2019_workshop_lld = "ICLR.cc/2019/Workshop/LLD/-/Blind_Submission" # 66
-iclr2019_workshop_dgmhsd = "ICLR.cc/2019/Workshop/DeepGenStruct/-/Blind_Submission" # 42
 
 
 venues = [iclr2013_conference,
@@ -51,12 +48,9 @@ venues = [iclr2013_conference,
           iclr2016_workshop,
           iclr2017_conference,
           iclr2017_workshop,
-          iclr2018_conference_blindsubm,
-          iclr2018_conference_withdrawn,
-          iclr2018_workshop,
-          iclr2018_workshop_withdrawn,
-          iclr2019_conference_blindsubm,
-          iclr2019_conference_withdrawn,
+          iclr2018_conference_decision,
+          iclr2018_workshop_decision,
+          iclr2019_conference_decision,
           iclr2019_workshop_drlmsp,
           iclr2019_workshop_rml,
           iclr2019_workshop_lld,
@@ -68,12 +62,9 @@ venues_csv = ["iclr2013_conference",
               "iclr2016_workshop",
               "iclr2017_conference",
               "iclr2017_workshop",
-              "iclr2018_conference_blindsubm",
-              "iclr2018_conference_withdrawn",
-              "iclr2018_workshop",
-              "iclr2018_workshop_withdrawn",
-              "iclr2019_conference_blindsubm",
-              "iclr2019_conference_withdrawn",
+              "iclr2018_conference_decision",
+              "iclr2018_workshop_decision",
+              "iclr2019_conference_decision",
               "iclr2019_workshop_drlmsp",
               "iclr2019_workshop_rml",
               "iclr2019_workshop_lld",
@@ -82,17 +73,24 @@ venues_csv = ["iclr2013_conference",
 
 def save_venue_to_csv(client, venue, csv_filename):
 
-  submitted_papers = list(tools.iterget_notes(client, invitation=venue))
+  submitted_papers = list(openreview.tools.iterget_notes(client, invitation=venue))
 
   with open(csv_filename+".csv", 'w') as csvfile:
       csvfile.write("title,authors,authorids,decision,abstract,pdf,replies\n")
       for paper in submitted_papers:
-          forum_id = paper.to_json()['id']
-          forum_comments = client.get_notes(forum=forum_id)
+
+          forum_id = paper.to_json()['forum']
+          decision = ""
+          content_keys = paper.to_json()["content"].keys()
+          
+          if 'decision' in content_keys:
+            decision = paper.to_json()['content']['decision']
+          elif 'recommendation' in content_keys:
+            decision = paper.to_json()['content']['recommendation']
+          forum_comments = client.get_notes(forum=str(forum_id))
           writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
           row = []
           replies = []
-
           for comment in forum_comments:
             if 'abstract' in comment.content.keys():
               row.append(comment.content["title"])
@@ -101,7 +99,7 @@ def save_venue_to_csv(client, venue, csv_filename):
               if 'decision' in comment.content.keys():
                 row.append(comment.content['decision'])
               else:
-                row.append('')
+                row.append(decision)
               row.append(comment.content["abstract"])
               row.append(comment.content["pdf"])
             else:
