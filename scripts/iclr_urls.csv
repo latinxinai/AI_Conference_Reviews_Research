@@ -1,0 +1,14 @@
+conference,conference_url,n_papers,comments
+iclr2013_conference,ICLR.cc/2013/conference/-/submission,67,
+iclr2014_conference,ICLR.cc/2014/conference/-/submission,69,without decisions data
+iclr2014_workshop,ICLR.cc/2014/workshop/-/submission,19,without decision data
+iclr2016_workshop,ICLR.cc/2016/workshop/-/submission,125,without decision data
+iclr2017_conference,ICLR.cc/2017/conference/-/paper.*/acceptance,490,
+iclr2017_workshop,ICLR.cc/2017/workshop/-/paper.*/acceptance,124,
+iclr2018_conference_decision,ICLR.cc/2018/Conference/-/Acceptance_Decision,935,
+iclr2018_workshop_decision,ICLR.cc/2018/Workshop/-/Acceptance_Decision,345,
+iclr2019_conference_decision,ICLR.cc/2019/Conference/-/Paper.*/Meta_Review,1419,
+iclr2019_workshop_drlmsp,ICLR.cc/2019/Workshop/drlStructPred/-/Paper.*/Decision,8,
+iclr2019_workshop_rml,ICLR.cc/2019/Workshop/RML/-/Paper.*/Decision,8,
+iclr2019_workshop_lld,ICLR.cc/2019/Workshop/LLD/-/Paper.*/Decision,67,
+iclr2019_workshop_dgmhsd,ICLR.cc/2019/Workshop/DeepGenStruct/-/Paper.*/Decision,42,

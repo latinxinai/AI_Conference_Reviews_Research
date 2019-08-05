@@ -1,128 +1,177 @@
-from openreview import openreview
-from openreview import tools
-import json
-import csv
 import pandas as pd
-import requests
-
-# ICLR
-
-# 2013
-
-iclr2013_conference = "ICLR.cc/2013/conference/-/submission" # 67
-
-# 2014
-
-iclr2014_conference = "ICLR.cc/2014/conference/-/submission" # 69
-iclr2014_workshop = "ICLR.cc/2014/workshop/-/submission" # 19
-
-# 2015 there was not ICLR on openreview
-
-# 2016 just entries for workshop
-
-iclr2016_workshop = "ICLR.cc/2016/workshop/-/submission" # 125
-
-# 2017
-
-iclr2017_conference = "ICLR.cc/2017/conference/-/submission" # 490
-iclr2017_workshop = "ICLR.cc/2017/workshop/-/submission" # 158
-
-# 2018
-
-iclr2018_conference_blindsubm = "ICLR.cc/2018/Conference/-/Blind_Submission" # 911
-iclr2018_conference_withdrawn = "ICLR.cc/2018/Conference/-/Withdrawn_Submission" # 83
-iclr2018_workshop = "ICLR.cc/2018/Workshop/-/Submission" # 343
-iclr2018_workshop_withdrawn = "ICLR.cc/2018/Workshop/-/Withdraw_Submission" # 1
-
-# 2019
-
-iclr2019_conference_blindsubm = "ICLR.cc/2019/Conference/-/Blind_Submission" # 1419
-iclr2019_conference_withdrawn = "ICLR.cc/2019/Conference/-/Withdrawn_Submission" # 160
-
-iclr2019_workshop_drlmsp = "ICLR.cc/2019/Workshop/drlStructPred/-/Blind_Submission" # 8
-iclr2019_workshop_rml = "ICLR.cc/2019/Workshop/RML/-/Blind_Submission" # 8
-iclr2019_workshop_lld = "ICLR.cc/2019/Workshop/LLD/-/Blind_Submission" # 66
-iclr2019_workshop_dgmhsd = "ICLR.cc/2019/Workshop/DeepGenStruct/-/Blind_Submission" # 42
-
-
-venues = [iclr2013_conference,
-          iclr2014_conference,
-          iclr2014_workshop,
-          iclr2016_workshop,
-          iclr2017_conference,
-          iclr2017_workshop,
-          iclr2018_conference_blindsubm,
-          iclr2018_conference_withdrawn,
-          iclr2018_workshop,
-          iclr2018_workshop_withdrawn,
-          iclr2019_conference_blindsubm,
-          iclr2019_conference_withdrawn,
-          iclr2019_workshop_drlmsp,
-          iclr2019_workshop_rml,
-          iclr2019_workshop_lld,
-          iclr2019_workshop_dgmhsd]
-      
-venues_csv = ["iclr2013_conference",
-              "iclr2014_conference",
-              "iclr2014_workshop",
-              "iclr2016_workshop",
-              "iclr2017_conference",
-              "iclr2017_workshop",
-              "iclr2018_conference_blindsubm",
-              "iclr2018_conference_withdrawn",
-              "iclr2018_workshop",
-              "iclr2018_workshop_withdrawn",
-              "iclr2019_conference_blindsubm",
-              "iclr2019_conference_withdrawn",
-              "iclr2019_workshop_drlmsp",
-              "iclr2019_workshop_rml",
-              "iclr2019_workshop_lld",
-              "iclr2019_workshop_dgmhsd"]
+import csv
+import time
+import concurrent.futures
+from openreview import openreview
 
 
 def save_venue_to_csv(client, venue, csv_filename):
+  """Given the url of a venue retrieves the data to a csv file
 
-  submitted_papers = list(tools.iterget_notes(client, invitation=venue))
+  Args:
+    client (Client object from openreview): Specifies the base URL
+      and the login infomation
+    venue (string): Each string is a URL to a conference
+    csv_filename (string): Name or path for the resulting csv file 
+  Yields:
+    A csv file name as csv_filename.csv that contains review data.
+  """
+  submitted_papers = list(openreview.tools.iterget_notes(client, invitation=venue))
 
-  with open(csv_filename+".csv", 'w') as csvfile:
-      csvfile.write("title,authors,authorids,decision,abstract,pdf,replies\n")
-      for paper in submitted_papers:
-          forum_id = paper.to_json()['id']
-          forum_comments = client.get_notes(forum=forum_id)
-          writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-          row = []
-          replies = []
+  with open(csv_filename+".csv", 'w') as csv_file:
+    csv_file.write("title,authors,emails,decision,abstract,pdf,replies\n") # header
+    for paper in submitted_papers:
+      tmp = paper.to_json()
+      forum_id = tmp['forum']
+      decision = ""
+      content_keys = tmp["content"].keys()
+      if 'decision' in content_keys:
+        decision = tmp['content']['decision']
+      elif 'recommendation' in content_keys:
+        decision = tmp['content']['recommendation']
+      forum_comments = client.get_notes(forum=str(forum_id))
+      writer = csv.writer(csv_file, quoting=csv.QUOTE_ALL)
+      row = []
+      replies = []
+      for comment in forum_comments:
+        if 'abstract' in comment.content.keys():
+          row.append(comment.content["title"])
+          row.append(comment.content['authors'])
+          row.append(comment.content['authorids'])
+          if 'decision' in comment.content.keys():
+            row.append(comment.content['decision'])
+          else:
+            row.append(decision)
+          row.append(comment.content["abstract"])
+          row.append(comment.content["pdf"])
+        else:
+          replies.append(list(comment.content.items()))
+      row.append(replies)
+      writer.writerow(row)
+  csv_file.close()
 
-          for comment in forum_comments:
-            if 'abstract' in comment.content.keys():
-              row.append(comment.content["title"])
-              row.append(comment.content['authors'])
-              row.append(comment.content['authorids'])
-              if 'decision' in comment.content.keys():
-                row.append(comment.content['decision'])
-              else:
-                row.append('')
-              row.append(comment.content["abstract"])
-              row.append(comment.content["pdf"])
-            else:
-              replies.append(list(comment.content.items()))
-          row.append(replies)
-          writer.writerow(row)
-  csvfile.close()
+def retrieve_data_from_paper(client, paper):
+  """Given the url of a venue retrieves the data to a csv file
 
-def save_all_venues_to_csv(client, venues, csv_filenames):
+  Args:
+	 	client (Client object from openreview): Specifies the base URL
+      and the login infomation
+		paper (string): Piece of text that identifies the paper in the venue
+    
+  Returns:
+    A list of strings corresponding to the data fetched from a peper id,
+    the list represents a row for the csv file in the following order:
+    
+    title,authors,emails,decision,abstract,pdf,replies
+
+    Where replies contains in all the replies for the paper as a string
+    with list format for example:
+    
+    [[('title', 'review of Deep Learning'), 
+    ('review', "This paper ... )')], 
+    [('title', 'review of Deep Learning')]]
+
+	"""
+
+  tmp = paper.to_json()
+  forum_id = tmp['forum']
+  content_keys = tmp["content"].keys()
+  decision = ""
+  if 'decision' in content_keys:
+    decision = tmp['content']['decision']
+  elif 'recommendation' in content_keys:
+    decision = tmp['content']['recommendation']
+  forum_comments = client.get_notes(forum=str(forum_id))
   
-  for i in range(len(venues)):
-    save_venue_to_csv(client, venues[i], csv_filenames[i])
-    print("Venue "+str(i)+" done.")
+  row = []
+  replies = []
+  for comment in forum_comments:
+    if 'abstract' in comment.content.keys():
+      row.append(comment.content["title"])
+      row.append(comment.content['authors'])
+      row.append(comment.content['authorids'])
+      if 'decision' in comment.content.keys():
+        row.append(comment.content['decision'])
+      else:
+        row.append(decision)
+      row.append(comment.content["abstract"])
+      row.append(comment.content["pdf"])
+    else:
+      replies.append(list(comment.content.items()))
+  row.append(replies)
+  
+  return row
+
+def save_venue_to_csv_parallel(client, venue, csv_filename, n_workers=8):
+  '''Given the url of a venue retrieves the data to a csv file
+
+  Args:
+    client (Client object from openreview): Specifies the base URL
+      and the login infomation
+    venue (string): Each string is a URL to a conference
+    csv_filename (string): Name or path for the resulting csv file 
+    n_workers (optional int): It specifies the number of workers
+	Yields:
+    A csv file name as csv_filename.csv that contains review data.
+  '''
+  submitted_papers = list(openreview.tools.iterget_notes(client, invitation=venue))
+
+  results = []
+  with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
+    futures = []
+    for paper in submitted_papers:
+      futures.append(executor.submit(retrieve_data_from_paper, client, paper))
+    for future in concurrent.futures.as_completed(futures):
+      results.append(future.result())
+  
+  with open(csv_filename+".csv", 'w') as csv_file:
+    csv_file.write("title,authors,emails,decision,abstract,pdf,replies\n") # header
+    writer = csv.writer(csv_file, quoting=csv.QUOTE_ALL)
+    for row in results:
+      writer.writerow(row)
+  csv_file.close()
+
+def save_all_venues_to_csv(client, venues, csv_filenames, n_workers=8, parallel=True):
+  '''Given a the list of urls of the venues retrieves all the review data into csv files
+
+  Args:
+    client (Client object from openreview): Specifies the base URL
+      and the login infomation
+    venues (list of strings): Each string is a URL to a conference
+    csv_filename (list of strings): Name or path for the resulting csv file 
+    n_workers (optional int): It specifies the number of workers
+		parallel (bool): To do this parallel using n_workers
+  Yields:
+    Csv files that contains review data.
+	'''
+
+  if parallel:
+    for i in range(len(venues)):
+      save_venue_to_csv_parallel(client, venues[i], csv_filenames[i], n_workers)
+      print("Venue "+str(i)+" done.")
+  else:
+    for i in range(len(venues)):
+      save_venue_to_csv_parallel(client, venues[i], csv_filenames[i])
+      print("Venue "+str(i)+" done.")
 
 def main():
+
+  path_to_data = "iclr_urls.csv"
+  iclr_conf_data = pd.read_csv(path_to_data) 
+  iclr_conf_data.head()
+
+  start = time.time()
+
   # Using guest mode
   client = openreview.Client(baseurl='https://openreview.net')
 
-  # save_venue_to_csv(client, iclr2018_conference_withdrawn, 'iclr2018_conference_withdrawn')
-  save_all_venues_to_csv(client, venues, venues_csv)
+  url_list = list(iclr_conf_data["conference_url"])
+  conference_list = list(iclr_conf_data["conference"])
 
+  save_all_venues_to_csv(client, url_list, conference_list, 8)
+
+  end = time.time()
+  print(end - start)
 
 if __name__ == "__main__":
     main()
